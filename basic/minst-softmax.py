@@ -1,12 +1,23 @@
 # -*- coding:utf-8 -*-
+import os
+import logging
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
 
+logname = 'handfigure'
+if not os.path.exists('logs'):
+    os.mkdir('logs')
+logformat = "%(asctime)s %(process)d %(thread)d %(threadName)s %(message)s"
+logging.basicConfig(filename=os.path.join('logs', logname),
+                    level=logging.DEBUG,
+                    format=logformat)
 mnist = input_data.read_data_sets('mnistdata', one_hot=True)
 
 input_size = 784
 unit_size_1 = 256
 unit_size_2 = 128
+unit_size_3 = 64
+unit_size_4 = 32
 n_class = 10
 batch_size = 100
 epoch_num = 200
@@ -36,15 +47,18 @@ def layer(input_data, input_size, output_size, active_fun=None):
         out_put = active_fun(output)
     return out_put
 
+
 def build_net():
     with tf.variable_scope('layer1'): # 隐藏层
         layer1 = layer(input_x, input_size, unit_size_1, tf.nn.sigmoid)
-
     with tf.variable_scope('layer2'): # 隐藏层
         layer2 = layer(layer1, unit_size_1, unit_size_2, tf.nn.sigmoid)
-
-    with tf.variable_scope('layer3'): #输出层
-        logits = layer(layer2,unit_size_2, n_class)
+    with tf.variable_scope('layer3'): # 隐藏层
+        layer3 = layer(layer2, unit_size_2, unit_size_3, tf.nn.sigmoid)
+    with tf.variable_scope('layer4'): # 隐藏层
+        layer4 = layer(layer3, unit_size_3, unit_size_4, tf.nn.sigmoid)
+    with tf.variable_scope('layer5'): # 输出层
+        logits = layer(layer4, unit_size_4, n_class)
     # logits = tf.nn.sigmoid_cross_entropy_with_logits(outlayer)
     return logits
 
@@ -57,7 +71,7 @@ train = tf.train.GradientDescentOptimizer(0.05).minimize(loss)
 acc_1 = tf.equal(tf.argmax(logits, axis=1), tf.argmax(y, axis=1))
 acc = tf.reduce_mean(tf.cast(acc_1, tf.float32))
 
-
+saver = tf.train.Saver()
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     epoch = 0
@@ -72,4 +86,12 @@ with tf.Session() as sess:
             sess.run(train, feed_dict=feeds)
             sum_loss += sess.run(loss, feeds)
         avg_loss = sum_loss /batch_num
+        accuary = sess.run(acc, feed_dict={input_x: mnist.test.images, y: mnist.test.labels})
+        print('epoch {} loss {} accuary{}'.format(epoch + 1, avg_loss, accuary))
+        logging.info('epoch {}, loss {}, accuary {}'.format(epoch + 1, avg_loss, accuary))
+        logging.info('hallo world')
+        epoch += 1
+        if accuary > 0.9:
+            saver.save(sess, 'model/model90')
+
 
